@@ -16,6 +16,7 @@ proc serve() {.async.} =
   server.bindAddr(Port(12345))
   server.listen()
   while true:
+    echo("Local socket port: ", $getSockName(server.getFd()))
     let (remoteAddr, client) = await server.acceptAddr()
     echo("Connection from ", remoteAddr)
     clients.add client
