@@ -49,7 +49,7 @@ proc recvFrom*(socket: AsyncFD, size: int,
   addRead(socket, cb)
   return retFuture
 
-proc sendTo(sk: AsyncSocket, peer: SockAddr_storage, data: string) =
+proc sendTo*(sk: AsyncSocket, peer: SockAddr_storage, data: string) =
   var sockAddress = peer
   var addrLen = sizeof(sockAddress).SockLen
   let res = posix.sendto(sk.getFd(), cast[pointer](cstring(data)), data.len, 0.cint, cast[ptr SockAddr](addr(sockAddress)), addrLen)
