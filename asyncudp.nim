@@ -11,18 +11,18 @@ from posix import SockAddr
 
 
 type 
-  UDPPacket = tuple [data: string, peer: SockAddr_storage]
+  PDUTuple = tuple [data: string, peer: SockAddr_storage]
 
 proc recvFrom*(socket: AsyncFD, size: int,
-                 flags = {SocketFlag.SafeDisconn}): Future[UDPPacket] =
-  var retFuture = newFuture[UDPPacket]("recv")
+                 flags = {SocketFlag.SafeDisconn}): Future[PDUTuple] =
+  var retFuture = newFuture[PDUTuple]("recv")
 
   var readBuffer= newString(size)
   var sockAddress: SockAddr_storage
   var addrLen = sizeof(sockAddress).SockLen
 
   proc cb(sock: AsyncFD): bool =
-    var nullpkt: UDPPacket
+    var nullpkt: PDUTuple
     result = true
     let res = recvfrom(sock.SocketHandle, cstring(readBuffer), 
                  size.cint, 0, cast[ptr SockAddr](addr(sockAddress)), addr(addrLen))
@@ -39,7 +39,7 @@ proc recvFrom*(socket: AsyncFD, size: int,
       # Disconnected
       retFuture.complete(nullpkt)
     else:
-      var goodpkt: UDPPacket
+      var goodpkt: PDUTuple
       readBuffer.setLen(res)
       goodpkt.data = readBuffer
       goodpkt.peer = sockAddress
@@ -54,14 +54,15 @@ proc sendTo(sk: AsyncSocket, peer: SockAddr_storage, data: string) =
   var addrLen = sizeof(sockAddress).SockLen
   let res = posix.sendto(sk.getFd(), cast[pointer](cstring(data)), data.len, 0.cint, cast[ptr SockAddr](addr(sockAddress)), addrLen)
 
+when isMainModule:
+  proc udpServe() {.async.} =
+    var server = newAsyncSocket(AF_INET6, SOCK_DGRAM, IPPROTO_UDP, false)
+    server.bindAddr(Port(10000))
+    echo("Send UDP to port 10000")
+    while true:
+      var (data, fromPeer) = await recvFrom(server.getFd().AsyncFD, 1500)
+      sendTo(server,fromPeer, data)
 
-proc udpServe() {.async.} =
-  var server = newAsyncSocket(AF_INET6, SOCK_DGRAM, IPPROTO_UDP, false)
-  server.bindAddr(Port(10000))
-  while true:
-    var (data, fromPeer) = await recvFrom(server.getFd().AsyncFD, 1500)
-    sendTo(server,fromPeer, data)
+  asyncCheck udpServe()
 
-asyncCheck udpServe()
-
-runForever()
+  runForever()
